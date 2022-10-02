@@ -28,7 +28,6 @@ impl Memory {
     }
 }
 
-
 impl Cpu {
 
     pub fn new() -> Cpu {
@@ -152,6 +151,7 @@ impl Cpu {
                 Cpu::INS_LDA_IM => {
                     self.a = self.fetch_byte(&mut ticks);
                     self.ldaset_status();
+                    self.dump();
                 },
                 Cpu::INS_LDA_ZP => {
                     let address = self.fetch_byte(&mut ticks);
@@ -240,7 +240,6 @@ fn main() {
     cpu.write(0xff02, Cpu::INS_LDA_ZP);
     cpu.write(0xff03, 0x02);
 
-
     cpu.hexdump();
     cpu.execute(17);
     cpu.dump();
@@ -257,8 +256,9 @@ mod tests {
         cpu.write(0xFFFC, Cpu::INS_LDA_ZP);
         cpu.write(0xFFFD, 0x42);
         cpu.write(0x0042, 0x84);
-        cpu.execute(4);
+        cpu.execute(3);
         assert_eq!(cpu.a, 0x84);
+        assert_eq!(cpu.pc, 0xFFFE);
     }
 
     #[test]
@@ -269,8 +269,10 @@ mod tests {
         cpu.write(0xFFFC, Cpu::INS_LDA_ZPX);
         cpu.write(0xFFFD, 0x42);
         cpu.write(0x0043, 0x84);
-        cpu.execute(5);
+        cpu.execute(4);
         assert_eq!(cpu.a, 0x84);
+        assert_eq!(cpu.x, 0x01);
+        assert_eq!(cpu.pc, 0xFFFE);
     }
 
     #[test]
@@ -281,6 +283,7 @@ mod tests {
         cpu.write(0xFFFD, 0x84);
         cpu.execute(2);
         assert_eq!(cpu.a, 0x84);
+        assert_eq!(cpu.pc, 0xFFFE);
     }
 
     #[test]
@@ -292,8 +295,8 @@ mod tests {
         cpu.write(0xFFFE, 0x42);
         cpu.write(0x4242, Cpu::INS_LDA_IM);
         cpu.write(0x4243, 0x84);
-        cpu.execute(7);
-        assert_eq!(cpu.pc, 0x4244);
+        cpu.execute(8);
         assert_eq!(cpu.a, 0x84);
+        assert_eq!(cpu.pc, 0x4244);
     }
 }
