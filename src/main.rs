@@ -131,7 +131,45 @@ impl Cpu {
     // Zero Page, X
     pub const INS_LDA_ZPX: u8 = 0xB5;
     // Absolute
+    pub const INS_LDA_ABS: u8 = 0xAD;
+    // Absolute, X
+    pub const INS_LDA_ABSX: u8 = 0xBD;
+    // Absolute, Y
+    pub const INS_LDA_ABSY: u8 = 0xB9;
+    // (Indirect, X)
+    pub const INS_LDA_INDX: u8 = 0xA1;
+    // (Indirect), Y
+    pub const INS_LDA_INDY: u8 = 0xB1;
+
+
+    // Immediate
+    pub const INS_LDX_IM: u8 = 0xA2;
+    // Zero Page
+    pub const INS_LDX_ZP: u8 = 0xA6;
+    // Zero Page, Y
+    pub const INS_LDX_ZPY: u8 = 0xB6;
+    // Absolute
+    pub const INS_LDX_ABS: u8 = 0xAE;
+    // Absolute, Y
+    pub const INS_LDX_ABSY: u8 = 0xBE;
+
+
+    // Immediate
+    pub const INS_LDY_IM: u8 = 0xA0;
+    // Zero Page
+    pub const INS_LDY_ZP: u8 = 0xA4;
+    // Zero Page, X
+    pub const INS_LDY_ZPX: u8 = 0xB4;
+    // Absolute
+    pub const INS_LDY_ABS: u8 = 0xAC;
+    // Absolute, X
+    pub const INS_LDY_ABSX: u8 = 0xBC;
+
+
+    // Jump
     pub const INS_JSR: u8 = 0x20;
+    // BRK
+    pub const INS_BRK: u8 = 0x00;
 
     pub fn reset(&mut self) {
         self.a = 0;
@@ -169,6 +207,12 @@ impl Cpu {
                     let address = self.fetch_word(&mut ticks);
                     self.push_word(self.pc - 1, &mut ticks);
                     self.pc = address;
+                },
+                Cpu::INS_BRK => {
+                    self.push_word(self.pc, &mut ticks);
+                    self.push_byte(self.status, &mut ticks);
+                    self.pc = self.read_word(0xFFFE, &mut ticks);
+                    self.status |= 0x04;
                 },
                 _ => {
                     panic!("Unknown instruction: {:02x}", instruction);
@@ -210,7 +254,11 @@ impl Cpu {
         self.push_byte(low, ticks);
     }
 
-
+    pub fn read_word(&self, address: u16, ticks: &mut u32) -> u16 {
+        let low = self.read_byte(address as u8, ticks);
+        let high = self.read_byte((address + 1) as u8, ticks);
+        (high as u16) << 8 | low as u16
+    }
 
     pub fn ldaset_status(&mut self) {
         if self.a & 0b10000000 != 0 {
@@ -239,9 +287,10 @@ fn main() {
     cpu.write(0xff01, 0x42);
     cpu.write(0xff02, Cpu::INS_LDA_ZP);
     cpu.write(0xff03, 0x02);
+    cpu.write(0xff04, Cpu::INS_BRK);
 
     cpu.hexdump();
-    cpu.execute(17);
+    cpu.execute(14);
     cpu.dump();
 }
 
@@ -298,5 +347,14 @@ mod tests {
         cpu.execute(8);
         assert_eq!(cpu.a, 0x84);
         assert_eq!(cpu.pc, 0x4244);
+    }
+
+    #[test]
+    fn test_brk() {
+        let mut cpu = Cpu::new();
+        cpu.reset();
+        cpu.write(0xFFFC, Cpu::INS_BRK);
+        cpu.execute(7);
+        assert_eq!(cpu.pc, 0xFFFE);
     }
 }
