@@ -1,69 +1,94 @@
-// emulate e6502 cpu
+#![allow(dead_code)]
 
+mod instruction;
+mod function;
+mod test;
+
+// type of addressing mode
+pub type Address = u16;
+
+// type of one byte
+pub type Byte = u8;
+
+// type of two bytes
+pub type Word = u16;
+
+// syze of the memory
 pub const MEMORY_SIZE: usize = 0x10000;
 
-pub struct Cpu {
-    pub a: u8,
-    pub x: u8,
-    pub y: u8,
-    pub pc: u16,
-    pub sp: u16,
-    pub status: u8,
-    pub memory: Memory,
+// size of the stack
+pub const STACK_SIZE: usize = 0x100;
+
+#[derive(Clone, Copy)]
+pub enum Flag {
+    Carry = 0b0000_0001,
+    Zero = 0b0000_0010,
+    Interrupt = 0b0000_0100,
+    Decimal = 0b0000_1000,
+    Break = 0b0001_0000,
+    Unused = 0b0010_0000,
+    Overflow = 0b0100_0000,
+    Negative = 0b1000_0000,
 }
 
-pub struct Memory {
-    pub mem: [u8; MEMORY_SIZE],
-}
-
-impl Memory {
-    pub fn new() -> Memory {
-        Memory { mem: [0; MEMORY_SIZE] }
-    }
-
-    pub fn randomize(&mut self) {
-        for i in 0..MEMORY_SIZE {
-            self.mem[i] = rand::random::<u8>();
+impl From<Flag> for Byte {
+    fn from(flag: Flag) -> Self {
+        match flag {
+            Flag::Carry => 0b00000001,
+            Flag::Zero => 0b00000010,
+            Flag::Interrupt => 0b00000100,
+            Flag::Decimal => 0b00001000,
+            Flag::Break => 0b00010000,
+            Flag::Unused => 0b00100000,
+            Flag::Overflow => 0b01000000,
+            Flag::Negative => 0b10000000,
         }
     }
 }
 
-impl Cpu {
+#[derive(Clone, Copy)]
+pub struct Ram {
+    memory: [Byte; MEMORY_SIZE],
+}
 
-    pub fn new() -> Cpu {
-        Cpu {
-            a: 0,
-            x: 0,
-            y: 0,
-            pc: 0,
-            sp: 0,
-            status: 0,
-            memory: Memory::new(),
+#[derive(Clone, Copy)]
+pub struct Cpu6502 {
+    a: u8,
+    x: u8,
+    y: u8,
+    sp: u8,
+    pc: u16,
+    status: Byte,
+    memory: Ram,
+}
+
+impl Ram {
+    pub fn new() -> Ram {
+        Ram {
+            memory: [0; MEMORY_SIZE],
         }
     }
 
-    pub fn load(&mut self, data: &[u8]) {
+    pub fn read(&self, address: Address) -> Byte {
+        self.memory[address as usize]
+    }
+
+    pub fn write(&mut self, address: Address, data: Byte) {
+        self.memory[address as usize] = data;
+    }
+
+    pub fn load(&mut self, data: &[u8], offset: Address) {
         for (i, &byte) in data.iter().enumerate() {
-            self.memory.mem[i] = byte;
+            self.write(offset + i as Address, byte);
         }
     }
 
-    pub fn run(&mut self) {
-        loop {
-            let opcode = self.memory.mem[self.pc as usize];
-            self.pc += 1;
-            match opcode {
-                0x00 => {
-                    println!("BRK");
-                    break;
-                },
-                _ => panic!("Unknown opcode: {:02x}", opcode),
-            }
-        }
+    pub fn reset(&mut self) {
+        self.memory = [0; MEMORY_SIZE];
     }
 
-    pub fn dump(&self) {
-        println!("A: {:02x} X: {:02x} Y: {:02x} PC: {:04x} SP: {:02x} Status: {:08b}", self.a, self.x, self.y, self.pc, self.sp, self.status);
+    pub fn dump(&self, offset: Address, len: usize) -> Vec<u8> {
+        self.memory[offset as usize..offset as usize + len].to_vec()
     }
 
     pub fn hexdump(&self) {
@@ -71,19 +96,18 @@ impl Cpu {
         let mut line_empty: bool = true;
         let mut line_ascii: String = String::new();
         let mut line_address: u16 = 0;
-        for (i, &byte) in self.memory.mem.iter().enumerate() {
+        for (i, &byte) in self.memory.iter().enumerate() {
             if i % 16 == 0 {
-                // print the line
                 if !line_empty {
-                    print!("{:04x}  ", line_address);
+                    print!("{:04X}  ", line_address);
                     for byte in line.iter() {
-                        print!("{:02x} ", byte);
+                        print!("{:02X} ", byte);
                     }
                     print!("  ");
                     for byte in line_ascii.chars() {
                         print!("{}", byte);
                     }
-                    println!("");
+                    println!();
                 }
                 line = [0; 16];
                 line_empty = true;
@@ -101,260 +125,207 @@ impl Cpu {
             }
         }
         if !line_empty {
-            print!("{:04x}  ", line_address);
+            print!("{:04X}  ", line_address);
             for byte in line.iter() {
-                print!("{:02x} ", byte);
+                print!("{:02X} ", byte);
             }
             print!("  ");
             for byte in line_ascii.chars() {
                 print!("{}", byte);
             }
-            println!("");
+            println!();
         }
-    }
-
-    pub fn read(&self, addr: u16) -> u8 {
-        self.memory.mem[addr as usize]
-    }
-
-    pub fn write(&mut self, addr: u16, data: u8) {
-        self.memory.mem[addr as usize] = data;
     }
 }
 
-impl Cpu {
-
-    // Immediate
-    pub const INS_LDA_IM: u8 = 0xA9;
-    // Zero Page
-    pub const INS_LDA_ZP: u8 = 0xA5;
-    // Zero Page, X
-    pub const INS_LDA_ZPX: u8 = 0xB5;
-    // Absolute
-    pub const INS_LDA_ABS: u8 = 0xAD;
-    // Absolute, X
-    pub const INS_LDA_ABSX: u8 = 0xBD;
-    // Absolute, Y
-    pub const INS_LDA_ABSY: u8 = 0xB9;
-    // (Indirect, X)
-    pub const INS_LDA_INDX: u8 = 0xA1;
-    // (Indirect), Y
-    pub const INS_LDA_INDY: u8 = 0xB1;
-
-
-    // Immediate
-    pub const INS_LDX_IM: u8 = 0xA2;
-    // Zero Page
-    pub const INS_LDX_ZP: u8 = 0xA6;
-    // Zero Page, Y
-    pub const INS_LDX_ZPY: u8 = 0xB6;
-    // Absolute
-    pub const INS_LDX_ABS: u8 = 0xAE;
-    // Absolute, Y
-    pub const INS_LDX_ABSY: u8 = 0xBE;
-
-
-    // Immediate
-    pub const INS_LDY_IM: u8 = 0xA0;
-    // Zero Page
-    pub const INS_LDY_ZP: u8 = 0xA4;
-    // Zero Page, X
-    pub const INS_LDY_ZPX: u8 = 0xB4;
-    // Absolute
-    pub const INS_LDY_ABS: u8 = 0xAC;
-    // Absolute, X
-    pub const INS_LDY_ABSX: u8 = 0xBC;
-
-
-    // Jump
-    pub const INS_JSR: u8 = 0x20;
-    // BRK
-    pub const INS_BRK: u8 = 0x00;
+impl Cpu6502 {
+    pub fn new(ram: Ram) -> Cpu6502 {
+        Cpu6502 {
+            a: 0,
+            x: 0,
+            y: 0,
+            sp: 0,
+            pc: 0,
+            status: 0,
+            memory: ram,
+        }
+    }
 
     pub fn reset(&mut self) {
         self.a = 0;
         self.x = 0;
         self.y = 0;
-        self.pc = 0xFFFC;
-        self.sp = 0x0100;
+        self.sp = 0;
+        self.pc = 0;
         self.status = 0;
-        self.memory = Memory::new();
+        self.pc = self.memory.read(0xFFFC) as u16 | (self.memory.read(0xFFFD) as u16) << 8;
     }
 
-    pub fn execute(&mut self, ticks: u32) {
-        let mut ticks = ticks;
-        while ticks > 0 {
-            let instruction = self.fetch_byte(&mut ticks);
-            match instruction {
-                Cpu::INS_LDA_IM => {
-                    self.a = self.fetch_byte(&mut ticks);
-                    self.ldaset_status();
-                    self.dump();
-                },
-                Cpu::INS_LDA_ZP => {
-                    let address = self.fetch_byte(&mut ticks);
-                    self.a = self.read_byte(address, &mut ticks);
-                    self.ldaset_status();
-                },
-                Cpu::INS_LDA_ZPX => {
-                    let address = self.fetch_byte(&mut ticks);
-                    let address = address.wrapping_add(self.x);
-                    ticks -= 1;
-                    self.a = self.read_byte(address, &mut ticks);
-                    self.ldaset_status();
-                },
-                Cpu::INS_JSR => {
-                    let address = self.fetch_word(&mut ticks);
-                    self.push_word(self.pc - 1, &mut ticks);
-                    self.pc = address;
-                },
-                Cpu::INS_BRK => {
-                    self.push_word(self.pc, &mut ticks);
-                    self.push_byte(self.status, &mut ticks);
-                    self.pc = self.read_word(0xFFFE, &mut ticks);
-                    self.status |= 0x04;
-                },
-                _ => {
-                    panic!("Unknown instruction: {:02x}", instruction);
-                }
-            }
+    pub fn dump(&self) {
+        println!("A: {:02X} X: {:02X} Y: {:02X} SP: {:02X} PC: {:04X} Status: {:02X}", self.a, self.x, self.y, self.sp, self.pc, self.status);
+    }
+
+    pub fn step(&mut self) -> Option<bool> {
+        let opcode = self.memory.read(self.pc);
+        let instruction = instruction::INSTRUCTIONS[opcode as usize];
+        let addressing_mode = instruction.addressing_mode;
+        (instruction.execute)(self, addressing_mode);
+        if instruction.name == "KIL" {
+            return Some(true);
         }
+        if instruction.name == "BRK" {
+            self.memory.hexdump();
+        }
+        None
     }
 
-    pub fn fetch_byte(&mut self, ticks: &mut u32) -> u8 {
-        let data = self.memory.mem[self.pc as usize];
+    pub fn read_byte(&mut self, address: Address) -> Byte {
         self.pc += 1;
-        *ticks-=1;
-        data
+        self.memory.read(address)
     }
 
-    pub fn push_byte(&mut self, data: u8, ticks: &mut u32) {
-        self.memory.mem[self.sp as usize] = data;
+    pub fn read_word(&mut self, address: Address) -> Word {
+        let low = self.read_byte(address) as Word;
+        let high = self.read_byte(address + 1) as Word;
+        low | (high << 8)
+    }
+
+    pub fn write_byte(&mut self, address: Address, data: Byte) {
+        self.pc += 1;
+        self.memory.write(address, data);
+    }
+
+    pub fn write_word(&mut self, address: Address, data: Word) {
+        self.write_byte(address, data as Byte);
+        self.write_byte(address + 1, (data >> 8) as Byte);
+    }
+
+
+    pub fn set_flag(&mut self, flag: Flag, value: bool) {
+        if value {
+            self.status |= flag as Byte;
+        } else {
+            self.status &= !(flag as Byte);
+        }
+    }
+
+    pub fn get_flag(&self, flag: Flag) -> bool {
+        (self.status & (flag as Byte)) != 0
+    }
+
+    pub fn push_stack(&mut self, data: Byte) {
+        self.memory.write(STACK_SIZE as Word + self.sp as Address, data);
+        self.sp += 1;
+    }
+
+    pub fn pop_stack(&mut self) -> Byte {
         self.sp -= 1;
-        *ticks -= 1;
+        self.memory.read((STACK_SIZE as Word + self.sp as Address) as Address)
     }
 
-    pub fn read_byte(&self, address: u8, ticks: &mut u32) -> u8 {
-        let data = self.memory.mem[address as usize];
-        *ticks-=1;
-        data
+    pub fn push_word_stack(&mut self, data: Word) {
+        self.push_stack((data >> 8) as Byte);
+        self.push_stack(data as Byte);
     }
 
-    pub fn fetch_word(&mut self, ticks: &mut u32) -> u16 {
-        let low = self.fetch_byte(ticks);
-        let high = self.fetch_byte(ticks);
-        (high as u16) << 8 | low as u16
+    pub fn pop_word_stack(&mut self) -> Word {
+        let low = self.pop_stack() as Word;
+        let high = self.pop_stack() as Word;
+        low | (high << 8)
     }
+}
 
-    pub fn push_word(&mut self, word: u16, ticks: &mut u32) {
-        let high = (word >> 8) as u8;
-        let low = word as u8;
-        *ticks -= 1;
-        self.push_byte(high, ticks);
-        self.push_byte(low, ticks);
-    }
+#[derive(Clone, Copy)]
+pub struct InputOutput {
+    keyboard: [bool; 16],
+    display: [bool; 64 * 32],
 
-    pub fn read_word(&self, address: u16, ticks: &mut u32) -> u16 {
-        let low = self.read_byte(address as u8, ticks);
-        let high = self.read_byte((address + 1) as u8, ticks);
-        (high as u16) << 8 | low as u16
-    }
+}
 
-    pub fn ldaset_status(&mut self) {
-        if self.a & 0b10000000 != 0 {
-            self.status |= 0b10000000;
+#[derive(Clone, Copy)]
+pub struct Emulator {
+    memory: Ram,
+    cpu: Cpu6502,
+    io: InputOutput,
+}
+
+impl Emulator {
+    pub fn new() -> Emulator {
+        let ram = Ram::new();
+        Emulator {
+            memory: ram,
+            cpu: Cpu6502::new(ram),
+            io: InputOutput {
+                keyboard: [false; 16],
+                display: [false; 64 * 32],
+            },
         }
-        if self.a == 0 {
-            self.status |= 0b00000010;
-        }
     }
 
-    pub fn asm(&mut self, _asm: &str) {
-        todo!("asm");
+    pub fn reset(&mut self) {
+        self.memory.reset();
+        self.cpu.reset();
+    }
+
+    pub fn flash_ram(&mut self) {
+        self.cpu.memory = self.memory;
+    }
+
+    pub fn load(&mut self, data: &[u8], offset: Address) {
+        self.memory.load(data, offset);
+    }
+
+    pub fn dump(&self, offset: Address, len: usize) -> Vec<u8> {
+        self.memory.dump(offset, len)
+    }
+
+    pub fn hexdump(&self) {
+        self.memory.hexdump();
+    }
+
+    pub fn dump_cpu(&self) {
+        self.cpu.dump();
+    }
+
+    pub fn step(&mut self) -> Option<bool> {
+        self.cpu.step()
     }
 }
 
 fn main() {
-    let mut cpu = Cpu::new();
-    cpu.reset();
-    cpu.write(0xFFFC, Cpu::INS_JSR);
-    cpu.write(0xFFFD, 0x00);
-    cpu.write(0xFFFE, 0x00);
-    cpu.write(0x0000, Cpu::INS_JSR);
-    cpu.write(0x0001, 0x00);
-    cpu.write(0x0002, 0xff);
-    cpu.write(0xff00, Cpu::INS_LDA_IM);
-    cpu.write(0xff01, 0x42);
-    cpu.write(0xff02, Cpu::INS_LDA_ZP);
-    cpu.write(0xff03, 0x02);
-    cpu.write(0xff04, Cpu::INS_BRK);
+    let mut emulator = Emulator::new();
 
-    cpu.hexdump();
-    cpu.execute(17);
-    cpu.dump();
-}
+    // function start to address 0x0200
+    emulator.load(&[0xA9, 0x09, 0x69, 0x09, 0x4C, 0x00, 0x01, 0x00], 0x200);
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    // function start to address 0x1000
+    emulator.load( &[0xBA, 0x00], 0x1000);
 
-    #[test]
-    fn test_lda_zp() {
-        let mut cpu = Cpu::new();
-        cpu.reset();
-        cpu.write(0xFFFC, Cpu::INS_LDA_ZP);
-        cpu.write(0xFFFD, 0x42);
-        cpu.write(0x0042, 0x84);
-        cpu.execute(3);
-        assert_eq!(cpu.a, 0x84);
-        assert_eq!(cpu.pc, 0xFFFE);
+    // reset function
+    emulator.memory.write(0xFFFC, 0x00);
+    emulator.memory.write(0xFFFD, 0x02);
+
+    // break function
+    emulator.memory.write(0xFFFE, 0x00);
+    emulator.memory.write(0xFFFF, 0x10);
+
+    emulator.flash_ram();
+    emulator.reset();
+
+    emulator.dump_cpu();
+    emulator.hexdump();
+
+    loop {
+        let kill = emulator.step();
+        emulator.dump_cpu();
+        match kill {
+            None => {}
+            Some(x) => {
+                if x == true {
+                    emulator.cpu.memory.hexdump();
+                    break
+                }
+            }
+        }
     }
-
-    #[test]
-    fn test_lda_zpx() {
-        let mut cpu = Cpu::new();
-        cpu.reset();
-        cpu.x = 0x01;
-        cpu.write(0xFFFC, Cpu::INS_LDA_ZPX);
-        cpu.write(0xFFFD, 0x42);
-        cpu.write(0x0043, 0x84);
-        cpu.execute(4);
-        assert_eq!(cpu.a, 0x84);
-        assert_eq!(cpu.x, 0x01);
-        assert_eq!(cpu.pc, 0xFFFE);
-    }
-
-    #[test]
-    fn test_lda_im() {
-        let mut cpu = Cpu::new();
-        cpu.reset();
-        cpu.write(0xFFFC, Cpu::INS_LDA_IM);
-        cpu.write(0xFFFD, 0x84);
-        cpu.execute(2);
-        assert_eq!(cpu.a, 0x84);
-        assert_eq!(cpu.pc, 0xFFFE);
-    }
-
-    #[test]
-    fn test_jsr() {
-        let mut cpu = Cpu::new();
-        cpu.reset();
-        cpu.write(0xFFFC, Cpu::INS_JSR);
-        cpu.write(0xFFFD, 0x42);
-        cpu.write(0xFFFE, 0x42);
-        cpu.write(0x4242, Cpu::INS_LDA_IM);
-        cpu.write(0x4243, 0x84);
-        cpu.execute(8);
-        assert_eq!(cpu.a, 0x84);
-        assert_eq!(cpu.pc, 0x4244);
-    }
-
-    // #[test]
-    // fn test_brk() {
-    //     let mut cpu = Cpu::new();
-    //     cpu.reset();
-    //     cpu.write(0xFFFC, Cpu::INS_BRK);
-    //     cpu.execute(7);
-    //     assert_eq!(cpu.pc, 0xFFFE);
-    // }
 }
