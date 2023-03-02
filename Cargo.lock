@@ -3,5 +3,12 @@
 version = 3
 
 [[package]]
+name = "cpu6502"
+version = "0.1.0"
+
+[[package]]
 name = "emul"
 version = "0.1.0"
+dependencies = [
+ "cpu6502",
+]
