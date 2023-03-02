@@ -31,7 +31,6 @@ pub fn get_cpu() -> Cpu6502 {
 ///
 #[cfg(test)]
 mod adc_tests {
-    use crate::Emulator;
     use super::*;
 
     #[test]
@@ -116,7 +115,7 @@ mod adc_tests {
 ///
 #[cfg(test)]
 mod lda_tests {
-    use crate::Emulator;
+    
     use super::*;
 
     #[test]
@@ -257,7 +256,7 @@ mod lda_tests {
 ///
 #[cfg(test)]
 mod ldx_tests {
-    use crate::Emulator;
+    
     use super::*;
 
     #[test]
@@ -383,7 +382,7 @@ mod ldx_tests {
 ///
 #[cfg(test)]
 mod ldy_tests {
-    use crate::Emulator;
+    
     use super::*;
 
     #[test]
@@ -507,7 +506,7 @@ mod ldy_tests {
 ///
 #[cfg(test)]
 mod brk_tests {
-    use crate::Emulator;
+    
     use super::*;
 
     #[test]
@@ -534,7 +533,7 @@ mod brk_tests {
 ///
 #[cfg(test)]
 mod cmp_tests {
-    use crate::Emulator;
+    
     use super::*;
 
     #[test]
@@ -606,7 +605,7 @@ mod cmp_tests {
 ///
 #[cfg(test)]
 mod dec_tests {
-    use crate::Emulator;
+    
     use super::*;
 
     #[test]
