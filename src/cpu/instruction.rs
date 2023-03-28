@@ -1,53 +1,6 @@
-use crate::{Cpu6502, function};
-
-#[derive(Clone, Copy)]
-pub enum AddressingMode {
-    Implied,
-    Immediate,
-    ZeroPage,
-    ZeroPageX,
-    ZeroPageY,
-    Absolute,
-    AbsoluteX,
-    AbsoluteY,
-    Indirect,
-    IndirectX,
-    IndirectY,
-    Relative,
-    Accumulator,
-}
-
-impl AddressingMode {
-    pub fn get_address(&self, cpu: &mut Cpu6502) -> u16 {
-        match self {
-            AddressingMode::Implied => 0,
-            AddressingMode::Immediate => {
-                cpu.pc += 1;
-                cpu.pc
-            },
-            AddressingMode::ZeroPage => cpu.read_byte(cpu.pc + 1) as u16,
-            AddressingMode::ZeroPageX => (cpu.read_byte(cpu.pc + 1) + cpu.x) as u16,
-            AddressingMode::ZeroPageY => (cpu.read_byte(cpu.pc + 1) + cpu.y) as u16,
-            AddressingMode::Absolute => cpu.read_word(cpu.pc + 1),
-            AddressingMode::AbsoluteX => cpu.read_word(cpu.pc + 1) + cpu.x as u16,
-            AddressingMode::AbsoluteY => cpu.read_word(cpu.pc + 1) + cpu.y as u16,
-            AddressingMode::Indirect => {
-                let address = cpu.read_word(cpu.pc + 1);
-                cpu.read_word(address)
-            },
-            AddressingMode::IndirectX => {
-                let address = cpu.read_byte(cpu.pc + 1) + cpu.x;
-                cpu.read_word(address as u16)
-            }
-            AddressingMode::IndirectY => {
-                let address = cpu.read_byte(cpu.pc + 1);
-                cpu.read_word(address as u16) + cpu.y as u16
-            }
-            AddressingMode::Relative => cpu.read_byte(cpu.pc + 1) as u16,
-            AddressingMode::Accumulator => cpu.a.into(),
-        }
-    }
-}
+use crate::cpu::cpu_6502::Cpu6502;
+use crate::cpu::addressing_mode::AddressingMode;
+use crate::cpu::function;
 
 #[derive(Clone, Copy)]
 pub struct Instruction<'a> {

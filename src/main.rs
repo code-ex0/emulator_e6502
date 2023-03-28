@@ -3,7 +3,10 @@
 use std::fs::File;
 use std::io::Read;
 use std::{thread, time};
-use cpu6502::{Address, Cpu6502, Ram};
+
+use emul::util::types::Address;
+use emul::cpu::cpu_6502::{Cpu6502, ExecutionState};
+use emul::memory::ram::Ram;
 
 
 #[derive(Clone, Copy)]
@@ -16,7 +19,7 @@ pub struct InputOutput {
 #[derive(Clone, Copy)]
 pub struct Emulator {
     memory: Ram,
-    cpu: Cpu6502,
+    pub cpu: Cpu6502,
     io: InputOutput,
 }
 
@@ -58,10 +61,6 @@ impl Emulator {
         self.cpu.dump();
     }
 
-    pub fn step(&mut self) -> Option<bool> {
-        self.cpu.step()
-    }
-
     pub fn load_binary(&mut self, path: &str, offset: Address) {
         let mut file = File::open(path).unwrap();
         let mut buffer = Vec::new();
@@ -72,45 +71,28 @@ impl Emulator {
 
 fn main() {
     let mut emulator = Emulator::new();
+
     emulator.reset();
     emulator.load_binary("o6502-2023-03-01-160025.bin", 0x0000);
     emulator.hexdump();
 
-
-    // // function start to address 0x0200
-    // emulator.load(&[0xA9, 0x09, 0x69, 0x09, 0x4C, 0x00, 0x01, 0x00], 0x200);
-
-    // // function start to address 0x1000
-    // emulator.load( &[0xBA, 0x00], 0x1000);
-
-    // reset function
-    // emulator.memory.write(0xFFFC, 0x16);
-    // emulator.memory.write(0xFFFD, 0x00);
-
-    // // break function
-    // emulator.memory.write(0xFFFE, 0x00);
-    // emulator.memory.write(0xFFFF, 0x10);
-
     emulator.flash_ram();
     emulator.reset();
 
-    // emulator.dump_cpu();
-    // emulator.hexdump();
-
     loop {
-        let kill = emulator.step();
+        let kill = emulator.cpu.execute_instruction();
         emulator.dump_cpu();
         match kill {
             None => {}
             Some(x) => {
-                if x == true {
-                    emulator.cpu.memory.hexdump();
-                    break
-                }
-                if x == false {
-                    emulator.cpu.memory.hexdump();
-                    // time sleep 1 second
-                    thread::sleep(time::Duration::from_millis(10000));
+                match x {
+                    ExecutionState::Running => {
+                        thread::sleep(time::Duration::from_millis(100));
+                    }
+                    ExecutionState::Error | ExecutionState::Stopped => {
+                        emulator.cpu.memory.hexdump();
+                        break
+                    }
                 }
             }
         }
