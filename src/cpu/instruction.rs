@@ -1,5 +1,9 @@
-use crate::cpu::cpu_6502::Cpu6502;
+///
+/// File: cpu/instruction.rs
+/// The instruction module contains the implementation of the instruction enum and the implementation of the instruction functions.
+///
 use crate::cpu::addressing_mode::AddressingMode;
+use crate::cpu::cpu_6502::Cpu6502;
 use crate::cpu::function;
 
 #[derive(Clone, Copy)]
@@ -10,6 +14,19 @@ pub struct Instruction<'a> {
     pub cycles: u8,
     pub length: u8,
     pub execute: fn(&mut Cpu6502, AddressingMode),
+}
+
+pub fn find_instruction_by_name_and_mode<'a>(
+    name: &'a str,
+    mode: &'a str,
+) -> Option<Instruction<'a>> {
+    INSTRUCTIONS
+        .iter()
+        .find(|inst| {
+            inst.name == name
+                && inst.addressing_mode.to_string().to_lowercase() == mode.to_lowercase()
+        })
+        .copied()
 }
 
 pub const INSTRUCTIONS: [Instruction; 256] = [
@@ -773,7 +790,7 @@ pub const INSTRUCTIONS: [Instruction; 256] = [
         length: 3,
         execute: function::lsr,
     },
-Instruction {
+    Instruction {
         name: "SRE",
         opcode: 0x5F,
         addressing_mode: AddressingMode::AbsoluteX,

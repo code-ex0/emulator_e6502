@@ -1,3 +1,8 @@
+///
+/// File: cpu/flag.rs
+/// The flag module contains the implementation of the flag enum and the implementation of the flag functions.
+///
+
 #[derive(Clone, Copy)]
 pub enum Flag {
     Carry = 0b0000_0001,

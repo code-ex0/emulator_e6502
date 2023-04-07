@@ -1,5 +1,10 @@
 #![allow(dead_code)]
 
+///
+/// File: main.rs
+/// The main module contains the implementation of the main function.
+///
+
 use std::fs::File;
 use std::io::Read;
 use std::{thread, time};
@@ -8,12 +13,10 @@ use emul::util::types::Address;
 use emul::cpu::cpu_6502::{Cpu6502, ExecutionState};
 use emul::memory::ram::Ram;
 
-
 #[derive(Clone, Copy)]
 pub struct InputOutput {
     keyboard: [bool; 16],
     display: [bool; 64 * 32],
-
 }
 
 #[derive(Clone, Copy)]
@@ -73,7 +76,8 @@ fn main() {
     let mut emulator = Emulator::new();
 
     emulator.reset();
-    emulator.load_binary("o6502-2023-03-01-160025.bin", 0x0000);
+    emulator.load_binary("bin/loop.bin", 0x0000);
+
     emulator.hexdump();
 
     emulator.flash_ram();

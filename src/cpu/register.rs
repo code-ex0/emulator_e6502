@@ -1,3 +1,7 @@
+///
+/// File: cpu/register.rs
+/// The register module contains the implementation of the register struct and the implementation of the register functions.
+///
 
 #[derive(Clone, Copy)]
 pub struct Registers {

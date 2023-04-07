@@ -1,4 +1,11 @@
+///
+/// File: cpu/addressing_mode.rs
+/// The addressing mode module contains the implementation of the addressing mode
+/// enum and the implementation of the addressing mode functions.
+///
+
 use crate::cpu::cpu_6502::Cpu6502;
+use std::fmt;
 
 
 #[derive(Clone, Copy)]
@@ -53,5 +60,27 @@ impl AddressingMode {
             AddressingMode::Relative => cpu.read_byte(cpu.registers.pc + 1) as u16,
             AddressingMode::Accumulator => cpu.registers.a as u16,
         }
+    }
+}
+
+
+impl fmt::Display for AddressingMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mode = match self {
+            AddressingMode::Immediate => "immediate",
+            AddressingMode::ZeroPage => "zero_page",
+            AddressingMode::ZeroPageX => "zero_page_x",
+            AddressingMode::ZeroPageY => "zero_page_y",
+            AddressingMode::Absolute => "absolute",
+            AddressingMode::AbsoluteX => "absolute_x",
+            AddressingMode::AbsoluteY => "absolute_y",
+            AddressingMode::Indirect => "indirect",
+            AddressingMode::IndirectX => "indirect_x",
+            AddressingMode::IndirectY => "indirect_y",
+            AddressingMode::Relative => "relative",
+            AddressingMode::Implied => "implied",
+            AddressingMode::Accumulator => "accumulator",
+        };
+        write!(f, "{}", mode)
     }
 }

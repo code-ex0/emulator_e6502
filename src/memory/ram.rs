@@ -1,3 +1,10 @@
+///
+/// File: memory/ram.rs
+/// The RAM module contains the implementation of the RAM chip.
+/// The RAM chip is a 64KB memory chip that is used to store the
+/// program and data that is being executed by the CPU.
+///
+
 use crate::util::types::{Byte, Address};
 use crate::util::constants::{MEMORY_SIZE};
 

@@ -1,3 +1,8 @@
+///
+/// File: cpu/cpu_6502.rs
+/// The cpu module contains the implementation of the cpu struct and the implementation of the cpu functions.
+///
+
 use crate::cpu::{
     instruction,
     flag::Flag,
@@ -61,7 +66,7 @@ impl Cpu6502 {
         };
         let addressing_mode = instruction.addressing_mode;
         (instruction.execute)(self, addressing_mode);
-        if instruction.name == OPCODE_KIL {
+        if instruction.name == OPCODE_KIL || instruction.name == "BRK" {
             return Some(ExecutionState::Stopped);
         }
         Some(ExecutionState::Running)
@@ -85,7 +90,7 @@ impl Cpu6502 {
 
     pub fn write_word(&mut self, address: Address, data: Word) {
         self.write_byte(address, data as Byte);
-        self.write_byte(address + 1, (data >> 8) as Byte);
+        self.write_byte(address.wrapping_add(1), (data >> 8) as Byte);
     }
 
 
@@ -103,11 +108,11 @@ impl Cpu6502 {
 
     pub fn push_stack(&mut self, data: Byte) {
         self.memory.write((STACK_SIZE as Word + self.registers.sp as Address) as Address, data);
-        self.registers.sp -= 1;
+        self.registers.sp = self.registers.sp.wrapping_sub(1);
     }
 
     pub fn pop_stack(&mut self) -> Byte {
-        self.registers.sp += 1;
+        self.registers.sp = self.registers.sp.wrapping_add(1);
         self.memory.read((STACK_SIZE as Word + self.registers.sp as Address) as Address)
     }
 
