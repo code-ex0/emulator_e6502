@@ -65,7 +65,7 @@ pub fn adc(cpu: &mut Cpu6502, mode: AddressingMode) {
     let carry = cpu.get_flag(Flag::Carry) as Byte;
     let result = cpu.registers.a.wrapping_add(value).wrapping_add(carry);
 
-    cpu.set_flag(Flag::Carry, result < cpu.registers.a);
+    cpu.set_flag(Flag::Carry, result < cpu.registers.a || result < value);
     cpu.set_flag(Flag::Zero, result == 0);
     cpu.set_flag(Flag::Negative, result & 0x80 != 0);
     cpu.set_flag(Flag::Overflow, (cpu.registers.a ^ result) & (value ^ result) & 0x80 != 0);
@@ -1031,8 +1031,26 @@ pub fn ahx(_cpu: &mut Cpu6502, _mode: AddressingMode) {
 // todo
 }
 
-pub fn asl(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn asl(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let value: Byte;
+    let result: Byte;
+
+    match mode {
+        AddressingMode::Accumulator => {
+            value = cpu.registers.a;
+            result = value << 1;
+            cpu.registers.a = result;
+        }
+        _ => {
+            let address = mode.get_address(cpu);
+            value = cpu.read_byte(address);
+            result = value << 1;
+            cpu.write_byte(address, result);
+        }
+    }
+    cpu.set_flag(Flag::Carry, value & 0x80 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
 }
 
 ///
@@ -1051,8 +1069,15 @@ pub fn jsr(cpu: &mut Cpu6502, mode: AddressingMode) {
     cpu.registers.pc = address;
 }
 
-pub fn and(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn and(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let a = cpu.registers.a;
+    let result = a & value;
+    cpu.registers.a = result;
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
 pub fn tas(_cpu: &mut Cpu6502, _mode: AddressingMode) {
