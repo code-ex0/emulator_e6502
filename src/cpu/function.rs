@@ -724,7 +724,7 @@ pub fn rol(cpu: &mut Cpu6502, mode: AddressingMode) {
 
     cpu.set_flag(Flag::Zero, value == 0);
     cpu.set_flag(Flag::Negative, value & 0x80 != 0);
-    cpu.registers.pc += 1;
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
 pub fn ror(cpu: &mut Cpu6502, mode: AddressingMode) {
@@ -745,7 +745,7 @@ pub fn ror(cpu: &mut Cpu6502, mode: AddressingMode) {
 
     cpu.set_flag(Flag::Zero, value == 0);
     cpu.set_flag(Flag::Negative, value & 0x80 != 0);
-    cpu.registers.pc += 1;
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
 pub fn rti(cpu: &mut Cpu6502, _mode: AddressingMode) {
@@ -755,7 +755,7 @@ pub fn rti(cpu: &mut Cpu6502, _mode: AddressingMode) {
 
 pub fn rts(cpu: &mut Cpu6502, _mode: AddressingMode) {
     cpu.registers.pc = cpu.pop_word_stack();
-    cpu.registers.pc += 1;
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
 pub fn sbc(cpu: &mut Cpu6502, mode: AddressingMode) {
@@ -768,7 +768,7 @@ pub fn sbc(cpu: &mut Cpu6502, mode: AddressingMode) {
     cpu.set_flag(Flag::Negative, result & 0x80 != 0);
     cpu.set_flag(Flag::Overflow, (cpu.registers.a ^ result) & (value ^ result) & 0x80 != 0);
     cpu.registers.a = result;
-    cpu.registers.pc += 1;
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
 pub fn sta(cpu: &mut Cpu6502, mode: AddressingMode) {
@@ -805,7 +805,7 @@ pub fn tay(cpu: &mut Cpu6502, _mode: AddressingMode) {
 pub fn tsx(cpu: &mut Cpu6502, _mode: AddressingMode) {
     let value = cpu.registers.sp;
     cpu.registers.x = value;
-    cpu.registers.pc += 1;
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
     cpu.set_flag(Flag::Zero, value == 0);
     cpu.set_flag(Flag::Negative, value & 0x80 != 0);
 }
@@ -967,16 +967,34 @@ pub fn kil(cpu: &mut Cpu6502, _mode: AddressingMode) {
     cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn lax(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-
+pub fn lax(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    cpu.registers.a = value;
+    cpu.registers.x = value;
+    cpu.set_flag(Flag::Zero, value == 0);
+    cpu.set_flag(Flag::Negative, value & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn sax(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn sax(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.registers.a & cpu.registers.x;
+    cpu.write_byte(address, value);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn dcp(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn dcp(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = value.wrapping_sub(1);
+    cpu.write_byte(address, result);
+    let a = cpu.registers.a;
+    let result = a.wrapping_sub(result);
+    cpu.set_flag(Flag::Carry, a >= result);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
 pub fn isc(cpu: &mut Cpu6502, mode: AddressingMode) {
@@ -991,44 +1009,114 @@ pub fn isc(cpu: &mut Cpu6502, mode: AddressingMode) {
     cpu.set_flag(Flag::Negative, result & 0x80 != 0);
 }
 
-pub fn rla(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn rla(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = value << 1;
+    cpu.write_byte(address, result);
+    let a = cpu.registers.a;
+    let result = a & result;
+    cpu.set_flag(Flag::Carry, value & 0x80 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn rra(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn rra(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = value >> 1;
+    cpu.write_byte(address, result);
+    let a = cpu.registers.a;
+    let result = a.wrapping_add(result);
+    cpu.set_flag(Flag::Carry, value & 0x01 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn slo(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn slo(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = value << 1;
+    cpu.write_byte(address, result);
+    let a = cpu.registers.a;
+    let result = a | result;
+    cpu.set_flag(Flag::Carry, value & 0x80 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn sre(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn sre(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = value >> 1;
+    cpu.write_byte(address, result);
+    let a = cpu.registers.a;
+    let result = a ^ result;
+    cpu.set_flag(Flag::Carry, value & 0x01 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn anc(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn anc(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.a & value;
+    cpu.set_flag(Flag::Carry, result & 0x80 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn alr(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn alr(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.a & value;
+    cpu.set_flag(Flag::Carry, result & 0x01 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn arr(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn arr(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.a & value;
+    cpu.set_flag(Flag::Carry, result & 0x01 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn xaa(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn xaa(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.x & value;
+    cpu.set_flag(Flag::Carry, result & 0x80 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn axs(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn axs(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.x & cpu.registers.a;
+    cpu.set_flag(Flag::Carry, result & 0x80 != 0);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn ahx(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn ahx(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.x & cpu.registers.a;
+    cpu.write_byte(address, result);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
 pub fn asl(cpu: &mut Cpu6502, mode: AddressingMode) {
@@ -1080,32 +1168,67 @@ pub fn and(cpu: &mut Cpu6502, mode: AddressingMode) {
     cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn tas(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn tas(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.x & cpu.registers.a;
+    cpu.write_byte(address, result);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn shx(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn shx(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.x & cpu.registers.a;
+    cpu.write_byte(address, result);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn shy(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn shy(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.y & cpu.registers.a;
+    cpu.write_byte(address, result);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn las(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn las(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.x & cpu.registers.a;
+    cpu.write_byte(address, result);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn cpy(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn cpy(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let a = cpu.registers.y;
+    let result = a.wrapping_sub(value);
+    cpu.set_flag(Flag::Carry, a >= value);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn cpx(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn cpx(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let a = cpu.registers.x;
+    let result = a.wrapping_sub(value);
+    cpu.set_flag(Flag::Carry, a >= value);
+    cpu.set_flag(Flag::Zero, result == 0);
+    cpu.set_flag(Flag::Negative, result & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn iny(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn iny(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    cpu.registers.y = value.wrapping_add(1);
+    cpu.set_flag(Flag::Zero, cpu.registers.y == 0);
+    cpu.set_flag(Flag::Negative, cpu.registers.y & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
 pub fn inx(cpu: &mut Cpu6502, mode: AddressingMode) {
@@ -1114,18 +1237,35 @@ pub fn inx(cpu: &mut Cpu6502, mode: AddressingMode) {
     cpu.registers.x = value.wrapping_add(1);
     cpu.set_flag(Flag::Zero, cpu.registers.x == 0);
     cpu.set_flag(Flag::Negative, cpu.registers.x & 0x80 != 0);
-    cpu.registers.pc += 1;
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn dey(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn dey(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    cpu.registers.y = value.wrapping_sub(1);
+    cpu.set_flag(Flag::Zero, cpu.registers.y == 0);
+    cpu.set_flag(Flag::Negative, cpu.registers.y & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn dex(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn dex(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    cpu.registers.x = value.wrapping_sub(1);
+    cpu.set_flag(Flag::Zero, cpu.registers.x == 0);
+    cpu.set_flag(Flag::Negative, cpu.registers.x & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
-pub fn asr(_cpu: &mut Cpu6502, _mode: AddressingMode) {
-// todo
+pub fn asr(cpu: &mut Cpu6502, mode: AddressingMode) {
+    let address = mode.get_address(cpu);
+    let value = cpu.read_byte(address);
+    let result = cpu.registers.a & value;
+    cpu.set_flag(Flag::Carry, result & 0x01 != 0);
+    cpu.registers.a = result >> 1;
+    cpu.set_flag(Flag::Zero, cpu.registers.a == 0);
+    cpu.set_flag(Flag::Negative, cpu.registers.a & 0x80 != 0);
+    cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
 }
 
