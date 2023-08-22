@@ -1103,7 +1103,7 @@ pub fn xaa(cpu: &mut Cpu6502, mode: AddressingMode) {
 
 pub fn axs(cpu: &mut Cpu6502, mode: AddressingMode) {
     let address = mode.get_address(cpu);
-    let value = cpu.read_byte(address);
+    let _value = cpu.read_byte(address);
     let result = cpu.registers.x & cpu.registers.a;
     cpu.set_flag(Flag::Carry, result & 0x80 != 0);
     cpu.set_flag(Flag::Zero, result == 0);
@@ -1113,7 +1113,7 @@ pub fn axs(cpu: &mut Cpu6502, mode: AddressingMode) {
 
 pub fn ahx(cpu: &mut Cpu6502, mode: AddressingMode) {
     let address = mode.get_address(cpu);
-    let value = cpu.read_byte(address);
+    let _value = cpu.read_byte(address);
     let result = cpu.registers.x & cpu.registers.a;
     cpu.write_byte(address, result);
     cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
@@ -1170,7 +1170,7 @@ pub fn and(cpu: &mut Cpu6502, mode: AddressingMode) {
 
 pub fn tas(cpu: &mut Cpu6502, mode: AddressingMode) {
     let address = mode.get_address(cpu);
-    let value = cpu.read_byte(address);
+    let _value = cpu.read_byte(address);
     let result = cpu.registers.x & cpu.registers.a;
     cpu.write_byte(address, result);
     cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
@@ -1178,7 +1178,7 @@ pub fn tas(cpu: &mut Cpu6502, mode: AddressingMode) {
 
 pub fn shx(cpu: &mut Cpu6502, mode: AddressingMode) {
     let address = mode.get_address(cpu);
-    let value = cpu.read_byte(address);
+    let _value = cpu.read_byte(address);
     let result = cpu.registers.x & cpu.registers.a;
     cpu.write_byte(address, result);
     cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
@@ -1186,7 +1186,7 @@ pub fn shx(cpu: &mut Cpu6502, mode: AddressingMode) {
 
 pub fn shy(cpu: &mut Cpu6502, mode: AddressingMode) {
     let address = mode.get_address(cpu);
-    let value = cpu.read_byte(address);
+    let _value = cpu.read_byte(address);
     let result = cpu.registers.y & cpu.registers.a;
     cpu.write_byte(address, result);
     cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
@@ -1194,7 +1194,7 @@ pub fn shy(cpu: &mut Cpu6502, mode: AddressingMode) {
 
 pub fn las(cpu: &mut Cpu6502, mode: AddressingMode) {
     let address = mode.get_address(cpu);
-    let value = cpu.read_byte(address);
+    let _value = cpu.read_byte(address);
     let result = cpu.registers.x & cpu.registers.a;
     cpu.write_byte(address, result);
     cpu.registers.pc = cpu.registers.pc.wrapping_add(1);
